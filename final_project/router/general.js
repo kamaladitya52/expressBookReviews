@@ -1,43 +1,67 @@
 const express = require('express');
-let books = require("./booksdb.js");
-let isValid = require("./auth_users.js").isValid;
-let users = require("./auth_users.js").users;
-const public_users = express.Router();
+const jwt = require('jsonwebtoken');
+const session = require('express-session')
+const customer_routes = require('./router/auth_users.js').authenticated;
+const genl_routes = require('./router/general.js').general;
 
 
-public_users.post("/register", (req,res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+let users = []
+//Function to check if the user exists
+const doesExist = (username)=>{
+  let userswithsamename = users.filter((user)=>{
+    return user.username === username
+  });
+  if(userswithsamename.length > 0){
+    return true;
+  } else {
+    return false;
+  }
+}
+//Function to check if the user is authenticated
+const authenticatedUser = (username,password)=>{
+  let validusers = users.filter((user)=>{
+    return (user.username === username && user.password === password)
+  });
+  if(validusers.length > 0){
+    return true;
+  } else {
+    return false;
+  }
+}
+
+
+
+
+const app = express();
+
+app.use(express.json());
+
+app.use("/customer",session({secret:"fingerprint_customer",resave: true, saveUninitialized: true}))
+
+app.use("/customer/auth/*", function auth(req,res,next){
+//Write the authenication mechanism here
+if(req.session.authorization) { //get the authorization object stored in the session
+    token = req.session.authorization['accessToken']; //retrieve the token from authorization object
+    jwt.verify(token, "access",(err,user)=>{ //Use JWT to verify token
+        if(!err){
+            req.user = user;
+            next();
+        }
+        else{
+            return res.status(403).json({message: "User not authenticated"})
+        }
+     });
+ } else {
+     return res.status(403).json({message: "User not logged in"})
+ }
 });
 
-// Get the book list available in the shop
-public_users.get('/',function (req, res) {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
-});
 
-// Get book details based on ISBN
-public_users.get('/isbn/:isbn',function (req, res) {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
- });
-  
-// Get book details based on author
-public_users.get('/author/:author',function (req, res) {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
-});
 
-// Get all books based on title
-public_users.get('/title/:title',function (req, res) {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
-});
+ 
+const PORT =5000;
 
-//  Get book review
-public_users.get('/review/:isbn',function (req, res) {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
-});
+app.use("/customer", customer_routes);
+app.use("/", genl_routes);
 
-module.exports.general = public_users;
+app.listen(PORT,()=>console.log("Server is running"));
